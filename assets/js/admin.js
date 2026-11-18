@@ -310,12 +310,13 @@
   function saveInline() {
     var keys = Object.keys(dirty);
     if (!keys.length) return;
-    var touchSite = false, touchApps = false;
-    var site = clone(S.site), apps = clone(S.apps);
-    var tmp = { site: site, apps: apps };
+    var touchSite = false, touchApps = false, touchSounds = false;
+    var site = clone(S.site), apps = clone(S.apps), sounds = clone(S.sounds || []);
+    var tmp = { site: site, apps: apps, sounds: sounds };
     keys.forEach(function (k) {
       if (k.indexOf('site.') === 0) touchSite = true;
       if (k.indexOf('apps.') === 0) touchApps = true;
+      if (k.indexOf('sounds.') === 0) touchSounds = true;
       var parts = k.split('.'), cur = tmp;
       for (var i = 0; i < parts.length - 1; i++) cur = stepIn(cur, parts[i]);
       if (cur) cur[parts[parts.length - 1]] = dirty[k];
@@ -323,9 +324,10 @@
     var ch = [];
     if (touchSite) ch.push({ path: 'data/site.json', text: json(site) });
     if (touchApps) ch.push({ path: 'data/apps.json', text: json(apps) });
+    if (touchSounds) ch.push({ path: 'data/sounds.json', text: json(sounds) });
     bar.classList.add('ja-busy');
     commit(ch, '문구 수정 (' + keys.length + '곳)').then(function () {
-      S.site = site; S.apps = apps; J.S.site = site; J.S.apps = apps;
+      S.site = site; S.apps = apps; S.sounds = sounds;
       dirty = {}; bar.classList.remove('ja-busy');
       document.querySelectorAll('.ja-dirty').forEach(function (n) { n.classList.remove('ja-dirty'); });
       drawBar(); saved();
@@ -338,7 +340,7 @@
   function cancelInline() { dirty = {}; J.render(); markEditable(); drawBar(); }
 
   /* ---------- 관리판 ---------- */
-  var TABS = [['posts', '글'], ['cats', '카테고리'], ['videos', '영상'], ['apps', '앱'], ['site', '사이트 문구'], ['storage', '저장공간'], ['settings', '설정']];
+  var TABS = [['posts', '글'], ['cats', '카테고리'], ['videos', '영상'], ['apps', '앱'], ['sounds', 'Sounds'], ['site', '사이트 문구'], ['storage', '저장공간'], ['settings', '설정']];
   function openPanel(tab, newPost) {
     if (!panel) {
       panel = el('div', { class: 'ja-panel', role: 'dialog', 'aria-modal': 'true', 'aria-label': '관리판' });
@@ -367,7 +369,7 @@
   }
   function show(tab, arg) {
     curTab = tab; drawTabs(); body.scrollTop = 0;
-    ({ posts: tabPosts, cats: tabCats, videos: tabVideos, apps: tabApps, site: tabSite, storage: tabStorage, settings: tabSettings })[tab](arg);
+    ({ posts: tabPosts, cats: tabCats, videos: tabVideos, apps: tabApps, sounds: tabSounds, site: tabSite, storage: tabStorage, settings: tabSettings })[tab](arg);
   }
 
   /* ---------- 토큰 입력 ---------- */
@@ -405,9 +407,9 @@
   function refresh() {
     return Promise.all([
       readJSON('data/site.json', S.site), readJSON('data/apps.json', []), readJSON('data/categories.json', []),
-      readJSON('data/posts/index.json', []), readJSON('data/videos.json', { playlists: [], videos: [] })
+      readJSON('data/posts/index.json', []), readJSON('data/videos.json', { playlists: [], videos: [] }), readJSON('data/sounds.json', [])
     ]).then(function (r) {
-      S.site = r[0]; S.apps = r[1]; S.cats = r[2]; S.posts = r[3]; S.videos = r[4];
+      S.site = J.withDefaults(r[0], J.DEFAULTS); S.apps = r[1]; S.cats = r[2]; S.posts = r[3]; S.videos = r[4]; S.sounds = r[5];
       J.render(); markEditable();
     }).catch(function (e) { toast(errMsg(e), 'err'); });
   }
@@ -694,6 +696,7 @@
     brunchUrl: '브런치 주소', footer: '하단 문구', description: '사이트 설명',
     slug: '주소 이름 (영문, 바꿀 수 없음)', tagline: '한 줄 설명', status: '상태', platforms: '지원 기기', featured_app: '홈에 표시', version: '버전', facts: '한 줄 정보 (버튼 아래)',
     downloads: '다운로드 버튼', video: '소개 영상 (유튜브 주소)', screenshots: '스크린샷 이미지 주소', warningTitle: '경고 안내 제목', warning: '경고 안내 내용',
+    sounds: 'Sounds 페이지', buy: '구매 버튼 글자', free: '무료 받기 버튼 글자', freeBadge: '무료 표시', bandcampUrl: '밴드캠프 주소',
     changelogTitle: '변경 이력 제목', changelog: '변경 이력', text: '내용', date: '날짜', donateText: '후원 안내 문구', donateButton: '후원 버튼 글자'
   };
   var HIDE = { repoOwner: 1, repoName: 1, repoBranch: 1 };
@@ -848,6 +851,92 @@
         var base = apps[0] ? blank(apps[0]) : {};
         var na = Object.assign(base, { slug: slug, name: name, status: 'soon', featured: false, changelogTitle: '변경 이력', warningTitle: '실행할 때 경고가 뜨나요?', donateButton: '후원하기', donateText: '마음에 드셨다면' });
         save(apps.concat([na]), [{ path: 'apps/' + slug + '/index.html', text: appStub(slug, name) }], '새 앱: ' + name);
+      }, 'primary')));
+  }
+
+  /* ---------- Sounds (밴드캠프) ---------- */
+  // 밴드캠프 임베드 코드에서 앨범 번호, 주소, 제목을 꺼냅니다
+  function parseEmbed(code) {
+    var c = String(code || ''), r = {};
+    var m = c.match(/EmbeddedPlayer\/(?:v=2\/)?(album|track)=(\d+)/);
+    if (m) r.embed = m[1] + '=' + m[2];
+    var a = c.match(/<a[^>]+href=["'](https?:\/\/[^"']+bandcamp\.com\/(?:album|track)\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/i);
+    if (a) {
+      r.url = a[1];
+      var t = J.plainText(a[2]).replace(/\s+by\s+.+$/i, '').trim();
+      if (t) r.title = t;
+    } else {
+      var u = c.match(/https?:\/\/[a-z0-9-]+\.bandcamp\.com\/(?:album|track)\/[a-z0-9-]+/i);
+      if (u) r.url = u[0];
+    }
+    return r;
+  }
+  function saveSounds(list, msg, after) {
+    return commit([{ path: 'data/sounds.json', text: json(list) }], msg)
+      .then(function () { S.sounds = list; J.render(); markEditable(); saved(); (after || tabSounds)(); })
+      .catch(function (e) { toast(errMsg(e), 'err'); });
+  }
+  function tabSounds(editId) {
+    var list = clone(S.sounds || []);
+    if (editId !== undefined) return editSound(list, editId);
+    fill(body,
+      el('div', { class: 'ja-row', style: 'justify-content:space-between;margin-bottom:12px' },
+        el('strong', { text: '사운드팩 ' + list.length + '개' }),
+        btn('새 사운드팩', function () { editSound(list, null); }, 'primary')),
+      el('p', { class: 'ja-p', text: '여기 순서대로 Sounds 페이지에 보입니다. 플레이어가 없는 팩은 "수정"에서 밴드캠프 임베드 코드를 붙여 넣으세요.' }),
+      el('ul', { class: 'ja-list' }, list.map(function (x, i) {
+        return el('li', null,
+          el('span', { class: 'led ' + (x.embed ? 'led-green' : 'led-amber'), title: x.embed ? '플레이어 있음' : '플레이어 없음', 'aria-hidden': 'true' }),
+          el('span', { class: 'grow' }, el('span', { class: 'ja-ellip', style: 'display:block', text: x.title }),
+            el('span', { class: 'sub', text: (x.free ? '무료 · ' : '') + (x.embed ? '플레이어 있음' : '플레이어 없음 (임베드 코드 필요)') })),
+          btn('위로', function () { if (!i) return; var l = clone(list); l.splice(i - 1, 0, l.splice(i, 1)[0]); saveSounds(l, '사운드팩 순서 변경'); }, 'ghost tiny', { disabled: !i }),
+          btn('수정', function () { editSound(list, x.id); }, 'tiny'),
+          btn('삭제', function () {
+            if (!confirm('"' + x.title + '"을 Sounds 페이지에서 뺄까요? 밴드캠프의 앨범은 그대로 남습니다.')) return;
+            saveSounds(list.filter(function (y) { return y.id !== x.id; }), '사운드팩 삭제: ' + x.title);
+          }, 'danger tiny'));
+      })));
+  }
+  function editSound(list, id) {
+    var isNew = id == null;
+    var x = isNew ? { id: '', title: '', summary: '', url: '', embed: '', free: false } : list.filter(function (y) { return y.id === id; })[0];
+    if (!x) return tabSounds();
+    var code = area('', { class: 'ja-in ja-area code', placeholder: '<iframe style="border: 0; ..." src="https://bandcamp.com/EmbeddedPlayer/album=...', spellcheck: 'false' });
+    var title = input(x.title, { placeholder: '사운드팩 이름' });
+    var sum = input(x.summary, { placeholder: '한 줄 소개' });
+    var url = input(x.url, { type: 'url', placeholder: 'https://jeonsansil.bandcamp.com/album/...' });
+    var free = el('input', { type: 'checkbox', checked: !!x.free });
+    var status = el('p', { class: 'ja-p', style: 'margin:0' });
+    var prev = el('div');
+    var embed = x.embed || '';
+    function showPrev() {
+      var src = J.bcSrc(embed);
+      status.textContent = src ? '플레이어를 찾았습니다 (' + embed + ').' : '아직 플레이어가 없습니다. 임베드 코드를 붙여 넣으면 생깁니다.';
+      fill(prev, src ? el('iframe', { src: src, title: '미리듣기', style: 'width:100%;height:120px;border:1px solid #D9D4CE;border-radius:4px;margin:10px 0 0;background:#fff' }) : null);
+    }
+    code.addEventListener('input', function () {
+      var r = parseEmbed(code.value);
+      if (r.embed) embed = r.embed;
+      if (r.url && !url.value.trim()) url.value = r.url;
+      if (r.title && !title.value.trim()) title.value = r.title;
+      if (code.value.trim() && !r.embed) { status.textContent = '코드에서 앨범 번호를 찾지 못했습니다. 밴드캠프의 Share / Embed → Embed this album에서 나온 코드 전체를 붙여 넣어 주세요.'; fill(prev); return; }
+      showPrev();
+    });
+    showPrev();
+    fill(body,
+      el('div', { class: 'ja-row', style: 'justify-content:space-between;margin-bottom:14px' },
+        el('strong', { text: isNew ? '새 사운드팩' : '사운드팩 수정' }), btn('목록으로', function () { tabSounds(); }, 'ghost tiny')),
+      field('밴드캠프 임베드 코드', code, '앨범 페이지 → Share / Embed → Embed this album → 오른쪽 아래 코드를 복사해 붙여 넣으세요. 제목과 주소도 자동으로 채워집니다.'),
+      el('div', { class: 'ja-box' }, status, prev),
+      field('제목', title), field('한 줄 소개', sum), field('밴드캠프 주소', url, '구매(또는 무료 받기) 버튼이 이 주소로 연결됩니다.'),
+      el('label', { class: 'ja-chk' }, free, el('span', { text: '무료 배포 (무료 표시와 "무료로 받기" 버튼)' })),
+      el('div', { class: 'ja-row' }, btn('저장', function () {
+        var t = title.value.trim();
+        if (!t) { toast('제목을 넣어 주세요.', 'err'); title.focus(); return; }
+        var item = { id: x.id || (t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'pack') + '-' + Math.random().toString(36).slice(2, 5),
+          title: t, summary: sum.value.trim(), url: url.value.trim(), embed: embed, free: free.checked };
+        var l = isNew ? list.concat([item]) : list.map(function (y) { return y.id === x.id ? item : y; });
+        saveSounds(l, (isNew ? '새 사운드팩: ' : '사운드팩 수정: ') + t);
       }, 'primary')));
   }
 

@@ -9,7 +9,29 @@
   var SLUG = document.body.getAttribute('data-slug') || '';
   var PER_PAGE = 10;
 
-  var S = { site: null, apps: [], cats: [], posts: [], videos: { playlists: [], videos: [] }, search: null };
+  var S = { site: null, apps: [], sounds: [], cats: [], posts: [], videos: { playlists: [], videos: [] }, search: null };
+
+  // 나중에 추가된 글귀의 기본값. 이미 올린 site.json에 없으면 이 값을 씁니다
+  var DEFAULTS = {
+    nav: { sounds: 'Sounds' },
+    sounds: {
+      title: 'Sounds',
+      lead: '직접 녹음하고 만든 사운드팩입니다. 구매와 다운로드는 밴드캠프에서 진행됩니다.',
+      buy: '밴드캠프에서 구매',
+      free: '밴드캠프에서 무료로 받기',
+      freeBadge: '무료',
+      empty: '아직 올라온 사운드팩이 없습니다.',
+      all: '밴드캠프에서 전체 보기'
+    },
+    bandcampUrl: 'https://jeonsansil.bandcamp.com/'
+  };
+  function withDefaults(dst, def) {
+    for (var k in def) {
+      if (dst[k] == null) dst[k] = JSON.parse(JSON.stringify(def[k]));
+      else if (typeof def[k] === 'object' && !Array.isArray(def[k]) && typeof dst[k] === 'object') withDefaults(dst[k], def[k]);
+    }
+    return dst;
+  }
 
   /* ---------- 작은 도구 ---------- */
   function el(tag, attrs) {
@@ -136,7 +158,7 @@
 
   /* ---------- 공통 틀 ---------- */
   function header() {
-    var items = [['apps', 'apps/'], ['blog', 'blog/'], ['videos', 'videos/'], ['about', 'about/']];
+    var items = [['apps', 'apps/'], ['sounds', 'sounds/'], ['blog', 'blog/'], ['videos', 'videos/'], ['about', 'about/']];
     var cur = PAGE === 'app' ? 'apps' : PAGE === 'post' ? 'blog' : PAGE;
     var brand = el('a', { class: 'brand', href: url(''), 'aria-label': S.site.name + ' 홈' },
       el('span', { class: 'led led-red brand-led', 'aria-hidden': 'true' }),
@@ -459,6 +481,31 @@
         tabBox, listBox));
   }
 
+  /* ---------- Sounds (밴드캠프) ---------- */
+  function bcSrc(embed) {
+    var m = String(embed || '').match(/^(album|track)=(\d+)$/);
+    if (!m) return '';
+    return 'https://bandcamp.com/EmbeddedPlayer/' + m[1] + '=' + m[2] + '/size=large/bgcol=ffffff/linkcol=c8211a/tracklist=false/artwork=small/transparent=true/';
+  }
+  function pageSounds() {
+    var k = 'site.sounds.';
+    return el('main', { class: 'wrap', id: 'main' },
+      el('div', { class: 'page-head' }, T('h1', k + 'title', 'page-title'), T('p', k + 'lead', 'lead')),
+      S.sounds.length ? el('ul', { class: 'sound-list' }, S.sounds.map(function (x) {
+        var sk = 'sounds.' + x.id + '.';
+        var src = bcSrc(x.embed);
+        return el('li', { class: 'sound' },
+          el('div', { class: 'sound-head' },
+            el('div', { class: 'sound-text' },
+              el('h2', { class: 'sound-title' }, T('span', sk + 'title'), x.free ? el('span', { class: 'badge' }, T('span', k + 'freeBadge')) : null),
+              has(sk + 'summary') ? T('p', sk + 'summary', 'sound-sum') : null),
+            x.url ? el('a', { class: 'btn ' + (x.free ? '' : 'btn-primary'), href: x.url, target: '_blank', rel: 'noopener' },
+              T('span', k + (x.free ? 'free' : 'buy')), el('span', { class: 'ext', 'aria-hidden': 'true', text: '↗' })) : null),
+          src ? el('iframe', { class: 'bc-player', src: src, title: x.title + ' 미리듣기', loading: 'lazy', seamless: true }) : null);
+      })) : T('p', k + 'empty', 'empty'),
+      has('site.bandcampUrl') ? el('p', { class: 'more' }, el('a', { href: S.site.bandcampUrl, target: '_blank', rel: 'noopener' }, T('span', k + 'all'))) : null);
+  }
+
   /* ---------- About ---------- */
   function pageAbout() {
     var a = 'site.about.';
@@ -481,7 +528,7 @@
   }
 
   /* ---------- 그리기 ---------- */
-  var PAGES = { home: pageHome, apps: pageApps, app: pageApp, blog: pageBlog, post: pagePost, videos: pageVideos, about: pageAbout, '404': notFound };
+  var PAGES = { home: pageHome, apps: pageApps, sounds: pageSounds, app: pageApp, blog: pageBlog, post: pagePost, videos: pageVideos, about: pageAbout, '404': notFound };
   var rendered = false;
   function render() {
     var app = document.getElementById('app');
@@ -489,7 +536,7 @@
       el('a', { class: 'skip', href: '#main', text: '본문 바로가기' }),
       header(), (PAGES[PAGE] || notFound)(), footer());
     if (PAGE === 'home' || PAGE === 'apps' || PAGE === 'about') document.title = PAGE === 'home' ? S.site.name : (getPath('site.nav.' + PAGE) + ' · ' + S.site.name);
-    if (PAGE === 'blog' || PAGE === 'videos') document.title = getPath('site.nav.' + PAGE) + ' · ' + S.site.name;
+    if (PAGE === 'blog' || PAGE === 'videos' || PAGE === 'sounds') document.title = getPath('site.nav.' + PAGE) + ' · ' + S.site.name;
     rendered = true;
     document.dispatchEvent(new CustomEvent('jss:render'));
   }
@@ -524,7 +571,7 @@
 
   /* admin.js 에서 쓰는 것들 */
   window.JSS = {
-    ROOT: ROOT, PAGE: PAGE, SLUG: SLUG, S: S, render: render, el: el,
+    ROOT: ROOT, DEFAULTS: DEFAULTS, withDefaults: withDefaults, bcSrc: bcSrc, PAGE: PAGE, SLUG: SLUG, S: S, render: render, el: el,
     getPath: getPath, setPath: setPath, sanitizeHTML: sanitizeHTML, plainText: plainText,
     fixAssetPaths: fixAssetPaths, ytId: ytId, thumb: thumb, catName: catName, fmtDate: fmtDate
   };
@@ -535,9 +582,10 @@
     getJSON('data/apps.json').catch(function () { return []; }),
     getJSON('data/categories.json').catch(function () { return []; }),
     getJSON('data/posts/index.json').catch(function () { return []; }),
+    (PAGE === 'sounds' ? getJSON('data/sounds.json') : Promise.resolve([])).catch(function () { return []; }),
     (PAGE === 'videos' ? getJSON('data/videos.json') : Promise.resolve({ playlists: [], videos: [] })).catch(function () { return { playlists: [], videos: [] }; })
   ]).then(function (r) {
-    S.site = r[0]; S.apps = r[1]; S.cats = r[2]; S.posts = r[3]; S.videos = r[4];
+    S.site = withDefaults(r[0], DEFAULTS); S.apps = r[1]; S.cats = r[2]; S.posts = r[3]; S.sounds = r[4]; S.videos = r[5];
     render();
     try { if (sessionStorage.getItem('jss-admin') === '1') openAdmin(); } catch (e) {}
   }).catch(function (err) {

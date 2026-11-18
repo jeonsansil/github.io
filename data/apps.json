@@ -1,0 +1,47 @@
+[
+  {
+    "slug": "ssulpuri",
+    "name": "썰풀이",
+    "tagline": "소설 원고를 게시판용 HTML로 바꿔주는 무료 프로그램",
+    "status": "live",
+    "platforms": "Windows · Mac",
+    "featured": true,
+    "version": "1.0",
+    "facts": "무료 · 인터넷 연결 없음 · 원고는 내 컴퓨터에만 저장",
+    "body": "소설 원고를 붙여 넣으면 커뮤니티 게시판에 바로 올릴 수 있는 HTML로 바꿔 줍니다.\n설치 없이 실행되고, 인터넷에 연결하지 않습니다.",
+    "downloads": [
+      { "label": "Windows 다운로드", "url": "" },
+      { "label": "Mac 다운로드", "url": "" }
+    ],
+    "video": "",
+    "screenshots": [],
+    "warningTitle": "실행할 때 경고가 뜨나요?",
+    "warning": "서명 비용을 쓰지 않는 무료 앱이라 경고가 뜹니다. 인터넷 연결 코드가 없는 안전한 프로그램입니다.\nWindows: '추가 정보'를 누른 뒤 '실행'을 누르세요.\nMac: 앱을 우클릭한 뒤 '열기'를 누르세요.",
+    "changelogTitle": "변경 이력",
+    "changelog": [
+      { "version": "1.0", "date": "2026.11", "text": "첫 공개" }
+    ],
+    "donateText": "마음에 드셨다면",
+    "donateButton": "후원하기"
+  },
+  {
+    "slug": "dotgongbang",
+    "name": "도트공방",
+    "tagline": "사진을 픽셀아트 번호 색칠 도안으로 바꿔주는 아이패드 앱",
+    "status": "soon",
+    "platforms": "iPad",
+    "featured": false,
+    "version": "",
+    "facts": "",
+    "body": "준비 중입니다. 출시 소식은 유튜브에서 알려드립니다.",
+    "downloads": [],
+    "video": "",
+    "screenshots": [],
+    "warningTitle": "",
+    "warning": "",
+    "changelogTitle": "변경 이력",
+    "changelog": [],
+    "donateText": "",
+    "donateButton": ""
+  }
+]

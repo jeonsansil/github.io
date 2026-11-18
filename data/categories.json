@@ -1,0 +1,5 @@
+[
+  { "id": "c-notice", "name": "공지" },
+  { "id": "c-records", "name": "음반 이야기" },
+  { "id": "c-making", "name": "만드는 이야기" }
+]

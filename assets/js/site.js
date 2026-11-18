@@ -499,7 +499,7 @@
             el('div', { class: 'sound-text' },
               el('h2', { class: 'sound-title' }, T('span', sk + 'title'), x.free ? el('span', { class: 'badge' }, T('span', k + 'freeBadge')) : null),
               has(sk + 'summary') ? T('p', sk + 'summary', 'sound-sum') : null),
-            x.url ? el('a', { class: 'btn ' + (x.free ? '' : 'btn-primary'), href: x.url, target: '_blank', rel: 'noopener' },
+            x.url ? el('a', { class: 'btn', href: x.url, target: '_blank', rel: 'noopener' },
               T('span', k + (x.free ? 'free' : 'buy')), el('span', { class: 'ext', 'aria-hidden': 'true', text: '↗' })) : null),
           src ? el('iframe', { class: 'bc-player', src: src, title: x.title + ' 미리듣기', loading: 'lazy', seamless: true }) : null);
       })) : T('p', k + 'empty', 'empty'),
